@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseUser } from "@/lib/supabase/useSession";
 
 const FIELDS: {
   key: string;
   label: string;
   required?: boolean;
-  type?: string;
 }[] = [
   { key: "name", label: "姓名", required: true },
   { key: "nickname", label: "稱呼" },
@@ -22,8 +23,10 @@ const FIELDS: {
 
 export default function NewCustomerPage() {
   const router = useRouter();
+  const { user, loading: userLoading } = useSupabaseUser();
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function update(key: string, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -31,15 +34,38 @@ export default function NewCustomerPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!values.name?.trim()) return;
+    if (!values.name?.trim() || !user) return;
 
     setSaving(true);
-    // Phase 1: UI only, mock data is static.
-    // Phase 2+: insert into `customers` via supabaseBrowser, then
-    // router.push(`/customers/${newId}`).
-    await new Promise((r) => setTimeout(r, 300));
+    setError(null);
+
+    const birthYear = values.birth_year ? Number(values.birth_year) : null;
+
+    const { data, error } = await supabaseBrowser
+      .from("customers")
+      .insert({
+        user_id: user.id,
+        name: values.name.trim(),
+        nickname: values.nickname || null,
+        gender: values.gender || null,
+        birth_year: birthYear,
+        occupation: values.occupation || null,
+        company: values.company || null,
+        phone: values.phone || null,
+        contact_info: values.contact_info || null,
+        notes: values.notes || null,
+      })
+      .select()
+      .single();
+
     setSaving(false);
-    router.push("/customers");
+
+    if (error || !data) {
+      setError("新增失敗，請再試一次");
+      return;
+    }
+
+    router.push(`/customers/${data.id}`);
   }
 
   return (
@@ -59,10 +85,7 @@ export default function NewCustomerPage() {
         <p className="mt-1 text-sm text-muted">只有姓名為必填</p>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="mt-6 flex flex-col gap-4 px-5"
-      >
+      <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4 px-5">
         {FIELDS.map((field) => (
           <div key={field.key}>
             <label className="mb-1 block text-xs text-muted">
@@ -87,9 +110,11 @@ export default function NewCustomerPage() {
           </div>
         ))}
 
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || userLoading}
           className="mt-2 w-full rounded-card bg-navy py-3 text-sm font-medium text-white active:bg-navy-light disabled:opacity-60"
         >
           {saving ? "儲存中..." : "新增完成"}
