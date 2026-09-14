@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { mockCustomers, mockProfiles, mockConversations } from "@/lib/mockData";
+import Link from "next/link";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseUser } from "@/lib/supabase/useSession";
 import { RelationshipLevel } from "@/components/RelationshipLevel";
 import { ProfileCard, TagList } from "@/components/ProfileCard";
+import { Customer, CustomerProfile, Conversation } from "@/types";
 
 export default function CustomerDetailPage({
   params,
@@ -12,10 +15,61 @@ export default function CustomerDetailPage({
   params: { id: string };
 }) {
   const router = useRouter();
-  const customer = mockCustomers.find((c) => c.id === params.id);
-  const profile = mockProfiles[params.id];
-  const conversations = mockConversations[params.id] ?? [];
+  const { user, loading: userLoading } = useSupabaseUser();
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [profile, setProfile] = useState<CustomerProfile | null>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let mounted = true;
+
+    async function load() {
+      const [customerRes, profileRes, conversationsRes] = await Promise.all([
+        supabaseBrowser
+          .from("customers")
+          .select("*")
+          .eq("id", params.id)
+          .single(),
+        supabaseBrowser
+          .from("customer_profiles")
+          .select("*")
+          .eq("customer_id", params.id)
+          .maybeSingle(),
+        supabaseBrowser
+          .from("conversations")
+          .select("*")
+          .eq("customer_id", params.id)
+          .order("conversation_date", { ascending: false }),
+      ]);
+
+      if (!mounted) return;
+      setCustomer(customerRes.data ?? null);
+      setProfile(profileRes.data ?? null);
+      setConversations(conversationsRes.data ?? []);
+      setLoading(false);
+    }
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [user, params.id]);
+
+  function comingSoon(feature: string) {
+    // Phase 3 will wire up real recording + AI analysis.
+    window.alert(`「${feature}」將在下一階段開放`);
+  }
+
+  if (userLoading || loading) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center px-5">
+        <p className="text-sm text-muted">載入中...</p>
+      </main>
+    );
+  }
 
   if (!customer) {
     return (
@@ -31,12 +85,9 @@ export default function CustomerDetailPage({
     );
   }
 
-  function comingSoon(feature: string) {
-    // Phase 2/3 will wire these up to real recording + AI analysis.
-    window.alert(`「${feature}」將在下一階段開放`);
-  }
-
-  return (
+  const lastContact = customer.updated_at
+    ? new Date(customer.updated_at).toISOString().slice(0, 10).replace(/-/g, "/")
+    : null;return (
     <main className="flex min-h-screen flex-col bg-surface pb-16">
       <header className="bg-paper px-5 pb-5 pt-8">
         <button
@@ -50,14 +101,15 @@ export default function CustomerDetailPage({
           <h1 className="font-serif text-2xl font-medium text-ink">
             {customer.name}
           </h1>
-          {customer.last_contact_at && (
-            <span className="text-xs text-muted">
-              最近互動：{customer.last_contact_at}
-            </span>
+          {lastContact && (
+            <span className="text-xs text-muted">最近互動：{lastContact}</span>
           )}
         </div>
         <p className="mt-0.5 text-sm text-muted">
-          {[customer.age ? `${customer.age}歲` : null, customer.occupation]
+          {[
+            customer.age ? `${customer.age}歲` : null,
+            customer.occupation,
+          ]
             .filter(Boolean)
             .join("　")}
         </p>
@@ -75,12 +127,12 @@ export default function CustomerDetailPage({
         >
           🎙 說一段新的紀錄
         </button>
-        <button
-          onClick={() => comingSoon("新增文字紀錄")}
+        <Link
+          href={`/customers/${customer.id}/new-text`}
           className="flex items-center justify-center gap-2 rounded-card border border-line bg-paper py-3.5 text-sm font-medium text-ink active:bg-surface"
         >
           ✏️ 新增文字紀錄
-        </button>
+        </Link>
       </div>
 
       <div className="mt-5 flex flex-col gap-3 px-5">
@@ -149,13 +201,8 @@ export default function CustomerDetailPage({
           </ul>
         </ProfileCard>
 
-        <ProfileCard title="下一步" empty={!customer.next_step}>
-          {customer.next_step && (
-            <div>
-              <p className="text-xs text-muted">下一次可以問</p>
-              <p className="mt-0.5">{customer.next_step}</p>
-            </div>
-          )}
+        <ProfileCard title="下一步" empty>
+          {/* AI-suggested next steps arrive in Phase 4 */}
         </ProfileCard>
       </div>
 
@@ -178,13 +225,17 @@ export default function CustomerDetailPage({
                 className="rounded-card border border-line bg-paper p-4 shadow-card"
               >
                 <p className="text-xs text-muted">{date}</p>
-                <p className="mt-1 text-sm text-ink">{conv.summary}</p>
-                <button
-                  onClick={() => setExpandedId(isOpen ? null : conv.id)}
-                  className="mt-2 text-xs text-navy"
-                >
-                  {isOpen ? "收合" : "查看完整紀錄"}
-                </button>
+                <p className="mt-1 text-sm text-ink">
+                  {conv.summary || conv.transcript}
+                </p>
+                {conv.transcript && (
+                  <button
+                    onClick={() => setExpandedId(isOpen ? null : conv.id)}
+                    className="mt-2 text-xs text-navy"
+                  >
+                    {isOpen ? "收合" : "查看完整紀錄"}
+                  </button>
+                )}
                 {isOpen && (
                   <div className="mt-3 border-t border-line pt-3 text-sm">
                     <p className="text-xs text-muted">原始逐字稿</p>
