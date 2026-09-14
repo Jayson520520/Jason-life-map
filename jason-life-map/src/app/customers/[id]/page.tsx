@@ -58,11 +58,6 @@ export default function CustomerDetailPage({
     };
   }, [user, params.id]);
 
-  function comingSoon(feature: string) {
-    // Phase 3 will wire up real recording + AI analysis.
-    window.alert(`「${feature}」將在下一階段開放`);
-  }
-
   if (userLoading || loading) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center px-5">
@@ -87,7 +82,9 @@ export default function CustomerDetailPage({
 
   const lastContact = customer.updated_at
     ? new Date(customer.updated_at).toISOString().slice(0, 10).replace(/-/g, "/")
-    : null;return (
+    : null;
+
+  return (
     <main className="flex min-h-screen flex-col bg-surface pb-16">
       <header className="bg-paper px-5 pb-5 pt-8">
         <button
@@ -121,12 +118,12 @@ export default function CustomerDetailPage({
 
       {/* Primary CTA */}
       <div className="grid grid-cols-2 gap-3 px-5 pt-5">
-        <button
-          onClick={() => comingSoon("新增語音紀錄")}
+        <Link
+          href={`/customers/${customer.id}/new-voice`}
           className="flex items-center justify-center gap-2 rounded-card bg-navy py-3.5 text-sm font-medium text-white active:bg-navy-light"
         >
           🎙 說一段新的紀錄
-        </button>
+        </Link>
         <Link
           href={`/customers/${customer.id}/new-text`}
           className="flex items-center justify-center gap-2 rounded-card border border-line bg-paper py-3.5 text-sm font-medium text-ink active:bg-surface"
