@@ -125,7 +125,8 @@ export default function NewVoiceConversationPage({
     const m = Math.floor(s / 60).toString().padStart(2, "0");
     const sec = (s % 60).toString().padStart(2, "0");
     return `${m}:${sec}`;
-  }return (
+  }
+  return (
     <main className="flex min-h-screen flex-col bg-paper pb-10">
       <header className="flex items-center gap-3 px-5 pb-4 pt-8">
         <button
