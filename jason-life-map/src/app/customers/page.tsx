@@ -1,22 +1,59 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { mockCustomers } from "@/lib/mockData";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { useSupabaseUser } from "@/lib/supabase/useSession";
 import { CustomerCard } from "@/components/CustomerCard";
+import { Customer } from "@/types";
 
 export default function CustomersPage() {
+  const { user, loading: userLoading, error: userError } = useSupabaseUser();
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (!user) return;
+    let mounted = true;
+
+    async function load() {
+      const { data, error } = await supabaseBrowser
+        .from("customers")
+        .select("*")
+        .order("updated_at", { ascending: false });
+
+      if (!error && data && mounted) {
+        setCustomers(
+          data.map((c) => ({
+            ...c,
+            last_contact_at: c.updated_at
+              ? new Date(c.updated_at)
+                  .toISOString()
+                  .slice(0, 10)
+                  .replace(/-/g, "/")
+              : undefined,
+          }))
+        );
+      }
+      if (mounted) setLoading(false);
+    }
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
 
   const filtered = useMemo(() => {
     const q = query.trim();
-    if (!q) return mockCustomers;
-    return mockCustomers.filter((c) =>
+    if (!q) return customers;
+    return customers.filter((c) =>
       [c.name, c.nickname, c.occupation, c.company]
         .filter(Boolean)
         .some((field) => field!.includes(q))
     );
-  }, [query]);
+  }, [customers, query]);
 
   return (
     <main className="flex min-h-screen flex-col bg-paper pb-8">
@@ -46,9 +83,17 @@ export default function CustomersPage() {
       </div>
 
       <div className="mt-5 flex flex-col gap-3 px-5">
-        {filtered.length === 0 && (
+        {userError && (
+          <p className="pt-10 text-center text-sm text-red-600">
+            連線失敗：{userError}
+          </p>
+        )}
+        {(userLoading || loading) && !userError && (
+          <p className="pt-10 text-center text-sm text-muted">載入中...</p>
+        )}
+        {!userLoading && !loading && filtered.length === 0 && !userError && (
           <p className="pt-10 text-center text-sm text-muted">
-            找不到符合的客戶
+            還沒有客戶，點上面新增第一位
           </p>
         )}
         {filtered.map((customer) => (
