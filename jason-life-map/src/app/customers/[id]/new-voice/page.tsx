@@ -126,6 +126,7 @@ export default function NewVoiceConversationPage({
     const sec = (s % 60).toString().padStart(2, "0");
     return `${m}:${sec}`;
   }
+
   return (
     <main className="flex min-h-screen flex-col bg-paper pb-10">
       <header className="flex items-center gap-3 px-5 pb-4 pt-8">
@@ -187,6 +188,25 @@ export default function NewVoiceConversationPage({
           <p className="text-xs text-muted">
             以下是轉錄結果，可以直接修改再儲存
           </p>
-   trigger redeleploy
+          <textarea
+            value={transcript}
+            onChange={(e) => setTranscript(e.target.value)}
+            rows={8}
+            className="w-full rounded-card border border-line bg-white p-3 text-sm text-ink"
+          />
+          <button
+            type="submit"
+            disabled={status !== "review" || !transcript.trim()}
+            className="flex items-center justify-center rounded-card bg-navy py-3.5 text-sm font-medium text-white active:bg-navy-light disabled:opacity-50"
+          >
+            儲存紀錄
+          </button>
+        </form>
+      )}
 
-          
+      {status === "saving" && (
+        <p className="mt-6 text-center text-sm text-muted">儲存中...</p>
+      )}
+    </main>
+  );
+}
