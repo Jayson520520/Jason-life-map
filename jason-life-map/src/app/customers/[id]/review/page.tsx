@@ -48,6 +48,48 @@ function parseKeyValue(line: string): [string, string] | null {
   return [k.trim(), v];
 }
 
+function EditableSection({
+  title,
+  list,
+  setList,
+}: {
+  title: string;
+  list: Editable[];
+  setList: (v: Editable[]) => void;
+}) {
+  if (list.length === 0) return null;
+
+  function updateItem(index: number, patch: Partial<Editable>) {
+    setList(list.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  }
+
+  return (
+    <section className="rounded-card border border-line bg-paper p-4 shadow-card">
+      <h3 className="text-xs font-medium tracking-wide text-muted">{title}</h3>
+      <div className="mt-2 flex flex-col gap-2">
+        {list.map((item, i) => (
+          <div key={i} className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={item.checked}
+              onChange={(e) => updateItem(i, { checked: e.target.checked })}
+              className="mt-1"
+            />
+            <textarea
+              value={item.text}
+              onChange={(e) => updateItem(i, { text: e.target.value })}
+              rows={1}
+              className={`flex-1 rounded-md border border-line bg-white px-2 py-1 text-sm ${
+                item.checked ? "text-ink" : "text-muted line-through"
+              }`}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function ReviewPage({
   params,
   searchParams,
@@ -155,15 +197,6 @@ export default function ReviewPage({
     };
   }, [user, params.id, conversationId]);
 
-  function updateItem(
-    list: Editable[],
-    setList: (v: Editable[]) => void,
-    index: number,
-    patch: Partial<Editable>
-  ) {
-    setList(list.map((item, i) => (i === index ? { ...item, ...patch } : item)));
-  }
-
   async function handleConfirm() {
     if (!customer || !user) return;
     setSaving(true);
@@ -267,34 +300,4 @@ export default function ReviewPage({
 
   if (userLoading || loading) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center px-5">
-        <p className="text-sm text-muted">載入中...</p>
-      </main>
-    );
-  }
-
-  if (!conversationId || !customer) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center px-5">
-        <p className="text-sm text-muted">找不到這則紀錄</p>
-        <button onClick={() => router.push(`/customers/${params.id}`)} className="mt-4 text-sm text-navy">
-          回客戶詳情
-        </button>
-      </main>
-    );
-  }
-
-  function renderSection(
-    title: string,
-    list: Editable[],
-    setList: (v: Editable[]) => void
-  ) {
-    if (list.length === 0) return null;
-    return (
-      <section className="rounded-card border border-line bg-paper p-4 shadow-card">
-        <h3 className="text-xs font-medium tracking-wide text-muted">{title}</h3>
-        <div className="mt-2 flex flex-col gap-2">
-          {list.map((item, i) => (
-            <div key={i} className="flex items-start gap-2">
-              <input
-                type="checkbox"
+      <main className="flex 
