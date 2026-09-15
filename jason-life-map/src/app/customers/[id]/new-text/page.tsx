@@ -23,9 +23,7 @@ export default function NewTextConversationPage({
     setSaving(true);
     setError(null);
 
-    // Phase 2: store the raw note as-is. AI analysis (structured
-    // summary, profile updates, next questions) is wired in Phase 4.
-    const { error: insertError } = await supabaseBrowser
+    const { data: inserted, error: insertError } = await supabaseBrowser
       .from("conversations")
       .insert({
         customer_id: params.id,
@@ -33,9 +31,11 @@ export default function NewTextConversationPage({
         input_type: "text",
         transcript: text.trim(),
         summary: text.trim().slice(0, 60),
-      });
+      })
+      .select()
+      .single();
 
-    if (insertError) {
+    if (insertError || !inserted) {
       setSaving(false);
       setError("儲存失敗，請再試一次");
       return;
@@ -47,7 +47,7 @@ export default function NewTextConversationPage({
       .eq("id", params.id);
 
     setSaving(false);
-    router.push(`/customers/${params.id}`);
+    router.push(`/customers/${params.id}/review?conversationId=${inserted.id}`);
   }
 
   return (
