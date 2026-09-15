@@ -26,16 +26,33 @@ function toEditable(items: string[]): Editable[] {
   return items.map((text) => ({ text, checked: true }));
 }
 
+function normalize(s: string): string {
+  return s.replace(/[，。,\.\s、；;:：!！?？"'「」『』()（）]/g, "").toLowerCase();
+}
+
+function isSimilar(a: string, b: string): boolean {
+  const na = normalize(a);
+  const nb = normalize(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  const shorter = na.length <= nb.length ? na : nb;
+  const longer = na.length <= nb.length ? nb : na;
+  if (longer.includes(shorter) && shorter.length / longer.length > 0.6) return true;
+  return false;
+}
+
 function mergeUnique(existing: string[], additions: string[]): string[] {
   const result = [...existing];
-  const seen = new Set(existing.map((s) => s.trim()));
   for (const item of additions) {
     const trimmed = item.trim();
-    if (trimmed && !seen.has(trimmed)) {
+    if (!trimmed) continue;
+    const isDuplicate = result.some((r) => isSimilar(r, trimmed));
+    if (!isDuplicate) {
       result.push(trimmed);
-      seen.add(trimmed);
     }
   }
+  return result;
+}
   return result;
 }
 
