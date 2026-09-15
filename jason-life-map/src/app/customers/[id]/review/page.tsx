@@ -53,8 +53,6 @@ function mergeUnique(existing: string[], additions: string[]): string[] {
   }
   return result;
 }
-  return result;
-}
 
 function parseKeyValue(line: string): [string, string] | null {
   const sep = line.includes("：") ? "：" : line.includes(":") ? ":" : null;
