@@ -150,9 +150,7 @@ profile.id
         </button>
       </main>
     );
-  }
-
-  const lastContact = customer.updated_at
+ const lastContact = customer.updated_at
     ? new Date(customer.updated_at).toISOString().slice(0, 10).replace(/-/g, "/")
     : null;
 
