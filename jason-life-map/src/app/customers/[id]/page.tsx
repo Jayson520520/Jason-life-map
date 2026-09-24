@@ -211,12 +211,17 @@ profile.id
 
       <div className="mt-5 flex flex-col gap-3 px-5">
         <ProfileCard title="家庭" empty={!profile?.family.length}>
-          <TagList items={profile?.family ?? []} />
+         <TagList
+            items={profile?.family ?? []}
+            onDelete={(i) => handleDeleteProfileItem("family", i)}
+          />
         </ProfileCard>
 
         <ProfileCard title="工作" empty={!profile?.work.length}>
-          <TagList items={profile?.work ?? []} />
-        </ProfileCard>
+         <TagList
+            items={profile?.work ?? []}
+            onDelete={(i) => handleDeleteProfileItem("work", i)}
+          />
 
         <ProfileCard
           title="財務輪廓"
@@ -225,31 +230,48 @@ profile.id
           <dl className="flex flex-col gap-1.5">
             {profile &&
               Object.entries(profile.finance).map(([k, v]) => (
-                <div key={k} className="flex justify-between">
+                <div key={k} className="flex items-center justify-between gap-2">
                   <dt className="text-muted">{k}</dt>
-                  <dd>{v}</dd>
+                  <div className="flex items-center gap-2">
+                    <dd>{v}</dd>
+                    <button
+                      onClick={() => handleDeleteFinanceItem(k)}
+                      className="text-xs text-red-600"
+                    >
+                      刪除
+                    </button>
+                  </div>
                 </div>
               ))}
           </dl>
         </ProfileCard>
 
         <ProfileCard title="人生想法" empty={!profile?.life_goals.length}>
-          <TagList items={profile?.life_goals ?? []} />
-        </ProfileCard>
+         <TagList
+            items={profile?.life_goals ?? []}
+            onDelete={(i) => handleDeleteProfileItem("life_goals", i)}
+          />
 
         <ProfileCard title="在乎的事情" empty={!profile?.concerns.length}>
-          <TagList items={profile?.concerns ?? []} />
-        </ProfileCard>
+         <TagList
+            items={profile?.concerns ?? []}
+            onDelete={(i) => handleDeleteProfileItem("concerns", i)}
+          />
 
         <ProfileCard title="抗拒／雷點" empty={!profile?.resistance.length}>
-          <TagList items={profile?.resistance ?? []} />
-        </ProfileCard>
+          <TagList
+            items={profile?.resistance ?? []}
+            onDelete={(i) => handleDeleteProfileItem("resistance", i)}
+          />
 
         <ProfileCard
           title="決策者"
           empty={!profile?.decision_makers.length}
         >
-          <TagList items={profile?.decision_makers ?? []} />
+         <TagList
+            items={profile?.decision_makers ?? []}
+            onDelete={(i) => handleDeleteProfileItem("decision_makers", i)}
+          />
         </ProfileCard>
 
         <ProfileCard
@@ -259,7 +281,15 @@ profile.id
           <ul className="flex flex-col gap-2">
             {profile?.competitors.map((comp, i) => (
               <li key={i} className="rounded-card bg-surface p-3">
-                <p className="font-medium">{comp.name}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-medium">{comp.name}</p>
+                  <button
+                    onClick={() => handleDeleteCompetitor(i)}
+                    className="shrink-0 text-xs text-red-600"
+                  >
+                    刪除
+                  </button>
+                </div>
                 <p className="text-xs text-muted">
                   {[comp.company, comp.relationship]
                     .filter(Boolean)
