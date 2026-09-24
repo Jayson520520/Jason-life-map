@@ -20,7 +20,24 @@ export default function CustomerDetailPage({
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+ const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleDeleteConversation(id: string) {
+    const confirmed = window.confirm("確定要刪除這則談話紀錄嗎？此動作無法復原。");
+    if (!confirmed) return;
+
+    setDeletingId(id);
+    const { error } = await supabaseBrowser
+      .from("conversations")
+      .delete()
+      .eq("id", id);
+
+    if (!error) {
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+    }
+    setDeletingId(null);
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -230,14 +247,23 @@ export default function CustomerDetailPage({
                 <p className="mt-1 text-sm text-ink">
                   {conv.summary || conv.transcript}
                 </p>
-                {conv.transcript && (
+               <div className="mt-2 flex items-center gap-3">
+                  {conv.transcript && (
+                    <button
+                      onClick={() => setExpandedId(isOpen ? null : conv.id)}
+                      className="text-xs text-navy"
+                    >
+                      {isOpen ? "收合" : "查看完整紀錄"}
+                    </button>
+                  )}
                   <button
-                    onClick={() => setExpandedId(isOpen ? null : conv.id)}
-                    className="mt-2 text-xs text-navy"
+                    onClick={() => handleDeleteConversation(conv.id)}
+                    disabled={deletingId === conv.id}
+                    className="text-xs text-red-600 disabled:opacity-50"
                   >
-                    {isOpen ? "收合" : "查看完整紀錄"}
+                    {deletingId === conv.id ? "刪除中..." : "刪除"}
                   </button>
-                )}
+                </div>
                 {isOpen && (
                   <div className="mt-3 border-t border-line pt-3 text-sm">
                     <p className="text-xs text-muted">原始逐字稿</p>
