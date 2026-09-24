@@ -38,6 +38,61 @@ export default function CustomerDetailPage({
     }
     setDeletingId(null);
   }
+  async function handleDeleteProfileItem(
+    field: "family" | "work" | "life_goals" | "concerns" | "resistance" | "decision_makers",
+    index: number
+  ) {
+    if (!profile) return;
+    const confirmed = window.confirm("確定要刪除這一項嗎？此動作無法復原。");
+    if (!confirmed) return;
+
+    const updatedList = profile[field].filter((_, i) => i !== index);
+    const { error } = await supabaseBrowser
+      .from("customer_profiles")
+      .update({ [field]: updatedList, updated_at: new Date().toISOString() })
+      .eq("id", profile.id);
+
+    if (!error) {
+      setProfile({ ...profile, [field]: updatedList });
+    }
+  }
+
+  async function handleDeleteCompetitor(index: number) {
+    if (!profile) return;
+    const confirmed = window.confirm("確定要刪除這一項嗎？此動作無法復原。");
+    if (!confirmed) return;
+
+    const updatedList = profile.competitors.filter((_, i) => i !== index);
+    const { error } = await supabaseBrowser
+      .from("customer_profiles")
+          .update({ competitors: updatedList, updated_at: new Date().toISOString() })
+      .eq("id", 
+profile.id
+);
+
+    if (!error) {
+      setProfile({ ...profile, competitors: updatedList });
+    }
+  }
+
+  async function handleDeleteFinanceItem(key: string) {
+    if (!profile) return;
+    const confirmed = window.confirm("確定要刪除這一項嗎？此動作無法復原。");
+    if (!confirmed) return;
+
+    const updated = { ...profile.finance };
+    delete updated[key];
+    const { error } = await supabaseBrowser
+      .from("customer_profiles")
+      .update({ finance: updated, updated_at: new Date().toISOString() })
+      .eq("id", 
+profile.id
+);
+
+    if (!error) {
+      setProfile({ ...profile, finance: updated });
+    }
+  }
 
   useEffect(() => {
     if (!user) return;
