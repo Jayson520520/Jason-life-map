@@ -98,9 +98,14 @@ export default function CustomerDetailPage({
           <h1 className="font-serif text-2xl font-medium text-ink">
             {customer.name}
           </h1>
-          {lastContact && (
-            <span className="text-xs text-muted">最近互動：{lastContact}</span>
-          )}
+          <div className="flex items-center gap-3">
+            {lastContact && (
+              <span className="text-xs text-muted">最近互動：{lastContact}</span>
+            )}
+            <Link href={`/customers/${customer.id}/edit`} className="text-xs text-navy">
+              編輯
+            </Link>
+          </div>
         </div>
         <p className="mt-0.5 text-sm text-muted">
           {[
