@@ -19,13 +19,28 @@ export function ProfileCard({
   );
 }
 
-export function TagList({ items }: { items: string[] }) {
+export function TagList({
+  items,
+  onDelete,
+}: {
+  items: string[];
+  onDelete?: (index: number) => void;
+}) {
   if (items.length === 0) return <p className="text-muted">待了解</p>;
   return (
     <ul className="flex flex-col gap-2">
       {items.map((item, i) => (
-        <li key={i} className="leading-relaxed">
-          {item}
+        <li key={i} className="flex items-start justify-between gap-2 leading-relaxed">
+          <span>{item}</span>
+          {onDelete && (
+            <button
+              onClick={() => onDelete(i)}
+              className="shrink-0 text-xs text-red-600"
+              aria-label="刪除"
+            >
+              刪除
+            </button>
+          )}
         </li>
       ))}
     </ul>
