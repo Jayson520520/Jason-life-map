@@ -55,13 +55,25 @@ export default function CustomersPage() {
     );
   }, [customers, query]);
 
+  async function handleLogout() {
+    await supabaseBrowser.auth.signOut();
+  }
+
   return (
     <main className="flex min-h-screen flex-col bg-paper pb-8">
-      <header className="px-5 pb-4 pt-8">
-        <p className="text-xs tracking-wide text-muted">人生。房產。學</p>
-        <h1 className="mt-1 font-serif text-2xl font-medium text-ink">
-          客戶人生地圖
-        </h1>
+      <header className="flex items-start justify-between px-5 pb-4 pt-8">
+        <div>
+          <p className="text-xs tracking-wide text-muted">人生。房產。學</p>
+          <h1 className="mt-1 font-serif text-2xl font-medium text-ink">
+            客戶人生地圖
+          </h1>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="mt-1 text-xs text-muted"
+        >
+          登出
+        </button>
       </header>
 
       <div className="px-5">
