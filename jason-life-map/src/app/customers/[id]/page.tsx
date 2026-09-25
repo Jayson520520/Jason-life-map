@@ -201,6 +201,11 @@ export default function CustomerDetailPage({
       : daysSinceContact !== null && daysSinceContact >= 14
       ? "text-amber-600"
       : "text-muted";
+  const TIER_STYLE: Record<string, string> = {
+    A: "bg-navy text-white",
+    B: "bg-amber-100 text-amber-800",
+    C: "bg-surface text-muted border border-line",
+  };
 
   return (
     <main className="flex min-h-screen flex-col bg-surface pb-16">
@@ -213,9 +218,20 @@ export default function CustomerDetailPage({
         </button>
 
         <div className="mt-3 flex items-baseline justify-between">
-          <h1 className="font-serif text-2xl font-medium text-ink">
-            {customer.name}
-          </h1>
+          <div className="flex items-center gap-2">
+            {customer.tier && (
+              <span
+                className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
+                  TIER_STYLE[customer.tier] ?? "bg-surface text-muted"
+                }`}
+              >
+                {customer.tier}
+              </span>
+            )}
+            <h1 className="font-serif text-2xl font-medium text-ink">
+              {customer.name}
+            </h1>
+          </div>
           <div className="flex items-center gap-3">
             {lastContactLabel && (
               <span className={`text-sm ${lastContactColor}`}>
