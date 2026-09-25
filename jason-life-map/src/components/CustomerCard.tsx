@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { Customer } from "@/types";
 
+// Extends Customer with a short AI-derived summary computed by the list
+// page from customer_profiles (concerns / life_goals), so the card can
+// show real AI-judged content instead of the still-unpopulated
+// current_focus / next_step fields.
+export type CustomerWithAI = Customer & { ai_highlights?: string[] };
+
 function formatDaysSinceContact(updatedAt?: string) {
   if (!updatedAt) return null;
   const days = Math.floor(
@@ -17,7 +23,7 @@ const TIER_STYLE: Record<string, string> = {
   C: "bg-surface text-muted border border-line",
 };
 
-export function CustomerCard({ customer }: { customer: Customer }) {
+export function CustomerCard({ customer }: { customer: CustomerWithAI }) {
   const contact = formatDaysSinceContact(customer.updated_at);
   const colorClass =
     contact && contact.days >= 30
@@ -64,6 +70,15 @@ export function CustomerCard({ customer }: { customer: Customer }) {
           <p className="text-sm text-muted">目前焦點</p>
           <p className="mt-0.5 text-base text-ink">
             {customer.current_focus.join("｜")}
+          </p>
+        </div>
+      )}
+
+      {customer.ai_highlights && customer.ai_highlights.length > 0 && (
+        <div className="mt-3">
+          <p className="text-sm text-muted">AI 觀察</p>
+          <p className="mt-0.5 text-base text-ink">
+            {customer.ai_highlights.join("｜")}
           </p>
         </div>
       )}
