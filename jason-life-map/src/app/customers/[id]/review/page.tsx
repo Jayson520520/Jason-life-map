@@ -26,6 +26,10 @@ function toEditable(items: string[]): Editable[] {
   return items.map((text) => ({ text, checked: true }));
 }
 
+function picked(list: Editable[]): string[] {
+  return list.filter((i) => i.checked && i.text.trim()).map((i) => i.text.trim());
+}
+
 function normalize(s: string): string {
   return s.replace(/[，。,\.\s、；;:：!！?？"'「」『』()（）]/g, "").toLowerCase();
 }
@@ -61,6 +65,81 @@ function parseKeyValue(line: string): [string, string] | null {
   const v = rest.join(sep).trim();
   if (!k.trim() || !v) return null;
   return [k.trim(), v];
+}
+
+// Merges this conversation's picked updates into the existing profile.
+// Used both for the live "熟悉度" preview while reviewing, and for the
+// actual save in handleConfirm, so the two never drift apart.
+function buildMergedProfile(
+  profile: CustomerProfile | null,
+  picks: {
+    family: string[];
+    work: string[];
+    financeLines: string[];
+    propertyLines: string[];
+    lifeGoals: string[];
+    concerns: string[];
+    resistance: string[];
+    decisionMakers: string[];
+    competitors: string[];
+  }
+) {
+  const financeUpdates: Record<string, string> = { ...(profile?.finance ?? {}) };
+  for (const line of picks.financeLines) {
+    const parsed = parseKeyValue(line);
+    if (parsed) financeUpdates[parsed[0]] = parsed[1];
+  }
+  const propertyUpdates: Record<string, string> = { ...(profile?.property ?? {}) };
+  for (const line of picks.propertyLines) {
+    const parsed = parseKeyValue(line);
+    if (parsed) propertyUpdates[parsed[0]] = parsed[1];
+  }
+
+  const existingCompetitorNames = (profile?.competitors ?? []).map((c) => c.name.trim());
+  const mergedCompetitors = [...(profile?.competitors ?? [])];
+  for (const c of picks.competitors) {
+    if (!existingCompetitorNames.includes(c.trim())) {
+      mergedCompetitors.push({ name: c.trim() });
+    }
+  }
+
+  return {
+    family: mergeUnique(profile?.family ?? [], picks.family),
+    work: mergeUnique(profile?.work ?? [], picks.work),
+    finance: financeUpdates,
+    property: propertyUpdates,
+    life_goals: mergeUnique(profile?.life_goals ?? [], picks.lifeGoals),
+    concerns: mergeUnique(profile?.concerns ?? [], picks.concerns),
+    resistance: mergeUnique(profile?.resistance ?? [], picks.resistance),
+    decision_makers: mergeUnique(profile?.decision_makers ?? [], picks.decisionMakers),
+    competitors: mergedCompetitors,
+  };
+}
+
+// 熟悉度 is no longer a manual guess — it's how many of the 8 profile
+// categories actually have data in them (equal weight, see discussion:
+// weighting bakes in a subjective call, so keep it simple and transparent).
+function computeRelationshipLevel(merged: {
+  family: string[];
+  work: string[];
+  finance: Record<string, string>;
+  life_goals: string[];
+  concerns: string[];
+  resistance: string[];
+  decision_makers: string[];
+  competitors: unknown[];
+}): Level {
+  const filled = [
+    merged.family.length > 0,
+    merged.work.length > 0,
+    Object.keys(merged.finance).length > 0,
+    merged.life_goals.length > 0,
+    merged.concerns.length > 0,
+    merged.resistance.length > 0,
+    merged.decision_makers.length > 0,
+    merged.competitors.length > 0,
+  ].filter(Boolean).length;
+  return Math.min(5, 1 + Math.floor((filled / 8) * 4)) as Level;
 }
 
 function EditableSection({
@@ -103,7 +182,7 @@ function EditableSection({
       </div>
     </section>
   );
-} 
+}
 
 export default function ReviewPage({
   params,
@@ -124,7 +203,6 @@ export default function ReviewPage({
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [analysis, setAnalysis] = useState<AiAnalysis | null>(null);
-  const [level, setLevel] = useState<Level>(1);
 
   const [family, setFamily] = useState<Editable[]>([]);
   const [work, setWork] = useState<Editable[]>([]);
@@ -163,7 +241,6 @@ export default function ReviewPage({
       setCustomer(cust);
       setProfile(prof);
       setConversation(conv);
-      setLevel(cust?.relationship_level ?? 1);
       setLoading(false);
 
       if (!conv?.transcript) {
@@ -212,59 +289,47 @@ export default function ReviewPage({
     };
   }, [user, params.id, conversationId]);
 
-async function handleConfirm() {
+  const previewMerged = buildMergedProfile(profile, {
+    family: picked(family),
+    work: picked(work),
+    financeLines: picked(finance),
+    propertyLines: picked(property),
+    lifeGoals: picked(lifeGoals),
+    concerns: picked(concerns),
+    resistance: picked(resistance),
+    decisionMakers: picked(decisionMakers),
+    competitors: picked(competitors),
+  });
+  const previewLevel = computeRelationshipLevel(previewMerged);
+
+  async function handleConfirm() {
     if (!customer || !user) return;
     setSaving(true);
     setError(null);
 
     try {
-      const picked = (list: Editable[]) =>
-        list.filter((i) => i.checked && i.text.trim()).map((i) => i.text.trim());
-
-      const newFamily = picked(family);
-      const newWork = picked(work);
-      const newFinanceLines = picked(finance);
-      const newPropertyLines = picked(property);
-      const newLifeGoals = picked(lifeGoals);
-      const newConcerns = picked(concerns);
-      const newResistance = picked(resistance);
-      const newDecisionMakers = picked(decisionMakers);
-      const newCompetitors = picked(competitors);
       const newNextQuestions = picked(nextQuestions);
 
-      const financeUpdates: Record<string, string> = { ...(profile?.finance ?? {}) };
-      for (const line of newFinanceLines) {
-        const parsed = parseKeyValue(line);
-        if (parsed) financeUpdates[parsed[0]] = parsed[1];
-      }
-      const propertyUpdates: Record<string, string> = { ...(profile?.property ?? {}) };
-      for (const line of newPropertyLines) {
-        const parsed = parseKeyValue(line);
-        if (parsed) propertyUpdates[parsed[0]] = parsed[1];
-      }
-
-      const existingCompetitorNames = (profile?.competitors ?? []).map((c) => c.name.trim());
-      const mergedCompetitors = [...(profile?.competitors ?? [])];
-      for (const c of newCompetitors) {
-        if (!existingCompetitorNames.includes(c.trim())) {
-          mergedCompetitors.push({ name: c.trim() });
-        }
-      }
+      const merged = buildMergedProfile(profile, {
+        family: picked(family),
+        work: picked(work),
+        financeLines: picked(finance),
+        propertyLines: picked(property),
+        lifeGoals: picked(lifeGoals),
+        concerns: picked(concerns),
+        resistance: picked(resistance),
+        decisionMakers: picked(decisionMakers),
+        competitors: picked(competitors),
+      });
 
       const profilePayload = {
         customer_id: customer.id,
-        family: mergeUnique(profile?.family ?? [], newFamily),
-        work: mergeUnique(profile?.work ?? [], newWork),
-        finance: financeUpdates,
-        property: propertyUpdates,
-        life_goals: mergeUnique(profile?.life_goals ?? [], newLifeGoals),
-        concerns: mergeUnique(profile?.concerns ?? [], newConcerns),
-        resistance: mergeUnique(profile?.resistance ?? [], newResistance),
-        decision_makers: mergeUnique(profile?.decision_makers ?? [], newDecisionMakers),
-        competitors: mergedCompetitors,
+        ...merged,
         preferences: profile?.preferences ?? {},
         updated_at: new Date().toISOString(),
       };
+
+      const computedLevel = computeRelationshipLevel(merged);
 
       if (profile?.id) {
         await supabaseBrowser.from("customer_profiles").update(profilePayload).eq("id", profile.id);
@@ -272,17 +337,10 @@ async function handleConfirm() {
         await supabaseBrowser.from("customer_profiles").insert(profilePayload);
       }
 
-      if (level !== customer.relationship_level) {
-        await supabaseBrowser
-          .from("customers")
-          .update({ relationship_level: level, updated_at: new Date().toISOString() })
-          .eq("id", customer.id);
-      } else {
-        await supabaseBrowser
-          .from("customers")
-          .update({ updated_at: new Date().toISOString() })
-          .eq("id", customer.id);
-      }
+      await supabaseBrowser
+        .from("customers")
+        .update({ relationship_level: computedLevel, updated_at: new Date().toISOString() })
+        .eq("id", customer.id);
 
       if (conversation) {
         await supabaseBrowser
@@ -332,7 +390,7 @@ async function handleConfirm() {
     );
   }
 
- return (
+  return (
     <main className="flex min-h-screen flex-col bg-surface pb-24">
       <header className="bg-paper px-5 pb-5 pt-8">
         <button onClick={() => router.push(`/customers/${customer.id}`)} className="text-sm text-muted">
@@ -359,18 +417,19 @@ async function handleConfirm() {
       {analysis && (
         <div className="mt-4 flex flex-col gap-3 px-5">
           <section className="rounded-card border border-line bg-paper p-4 shadow-card">
-            <h3 className="text-xs font-medium tracking-wide text-muted">熟悉度</h3>
+            <h3 className="text-xs font-medium tracking-wide text-muted">
+              熟悉度（依已知資料自動計算，不用手動設定）
+            </h3>
             <div className="mt-2 flex items-center gap-2">
               <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map((n) => (
-                  <button
+                  <span
                     key={n}
-                    onClick={() => setLevel(n as Level)}
-                    className={`h-6 w-8 rounded-full ${n <= level ? "bg-navy" : "bg-line"}`}
+                    className={`h-6 w-8 rounded-full ${n <= previewLevel ? "bg-navy" : "bg-line"}`}
                   />
                 ))}
               </div>
-              <span className="text-xs text-muted">{LEVEL_LABELS[level]}</span>
+              <span className="text-xs text-muted">{LEVEL_LABELS[previewLevel]}</span>
             </div>
           </section>
 
