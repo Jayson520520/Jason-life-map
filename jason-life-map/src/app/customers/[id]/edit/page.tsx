@@ -107,7 +107,6 @@ export default function EditCustomerPage({
         phone: values.phone || null,
         contact_info: values.contact_info || null,
         notes: values.notes || null,
-        updated_at: new Date().toISOString(),
       })
       .eq("id", params.id);
 
