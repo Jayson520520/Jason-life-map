@@ -17,6 +17,30 @@ function formatDaysSinceContact(updatedAt?: string) {
   return { label: `距上次聯絡 ${days} 天`, days };
 }
 
+// Manually-set "next_contact_at" reminder date — only surfaced on the
+// card when it's due today, overdue, or coming up within 3 days, so the
+// list stays scannable instead of showing a pill for every customer.
+function formatUpcomingReminder(nextContactAt?: string | null) {
+  if (!nextContactAt) return null;
+  const target = new Date(nextContactAt + "T00:00:00");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round(
+    (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (days < 0) {
+    return { label: `逾期 ${Math.abs(days)} 天`, className: "bg-red-600 text-white" };
+  }
+  if (days === 0) {
+    return { label: "今天要聯絡", className: "bg-red-600 text-white" };
+  }
+  if (days <= 3) {
+    return { label: `${days} 天後聯絡`, className: "bg-amber-100 text-amber-800" };
+  }
+  return null;
+}
+
 const TIER_STYLE: Record<string, string> = {
   A: "bg-navy text-white",
   B: "bg-amber-100 text-amber-800",
@@ -31,6 +55,7 @@ export function CustomerCard({ customer }: { customer: CustomerWithAI }) {
       : contact && contact.days >= 14
       ? "text-amber-600"
       : "text-muted";
+  const reminder = formatUpcomingReminder(customer.next_contact_at);
 
   return (
     <Link
@@ -64,6 +89,14 @@ export function CustomerCard({ customer }: { customer: CustomerWithAI }) {
           .filter(Boolean)
           .join("｜")}
       </p>
+
+      {reminder && (
+        <span
+          className={`mt-2 inline-block rounded-full px-2.5 py-1 text-xs font-medium ${reminder.className}`}
+        >
+          ⏰ {reminder.label}
+        </span>
+      )}
 
       {customer.current_focus && customer.current_focus.length > 0 && (
         <div className="mt-3">
