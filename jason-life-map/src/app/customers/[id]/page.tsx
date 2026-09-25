@@ -218,7 +218,7 @@ export default function CustomerDetailPage({
           </h1>
           <div className="flex items-center gap-3">
             {lastContactLabel && (
-              <span className={`text-xs ${lastContactColor}`}>
+              <span className={`text-sm ${lastContactColor}`}>
                 {lastContactLabel}
               </span>
             )}
