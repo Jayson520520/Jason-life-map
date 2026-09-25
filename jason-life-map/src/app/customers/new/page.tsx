@@ -9,16 +9,29 @@ const FIELDS: {
   key: string;
   label: string;
   required?: boolean;
+  type?: "text" | "textarea" | "select";
+  options?: { value: string; label: string }[];
 }[] = [
   { key: "name", label: "姓名", required: true },
   { key: "nickname", label: "稱呼" },
+  {
+    key: "tier",
+    label: "客戶級別",
+    type: "select",
+    options: [
+      { value: "", label: "未分級" },
+      { value: "A", label: "A（高優先）" },
+      { value: "B", label: "B（一般）" },
+      { value: "C", label: "C（待觀察）" },
+    ],
+  },
   { key: "gender", label: "性別（optional）" },
   { key: "birth_year", label: "年齡或出生年份" },
   { key: "occupation", label: "職業" },
   { key: "company", label: "公司／產業" },
   { key: "phone", label: "手機" },
   { key: "contact_info", label: "LINE / 聯絡方式" },
-  { key: "notes", label: "備註" },
+  { key: "notes", label: "備註", type: "textarea" },
 ];
 
 export default function NewCustomerPage() {
@@ -47,6 +60,7 @@ export default function NewCustomerPage() {
         user_id: user.id,
         name: values.name.trim(),
         nickname: values.nickname || null,
+        tier: values.tier || null,
         gender: values.gender || null,
         birth_year: birthYear,
         occupation: values.occupation || null,
@@ -92,13 +106,25 @@ export default function NewCustomerPage() {
               {field.label}
               {field.required && <span className="text-navy"> *</span>}
             </label>
-            {field.key === "notes" ? (
+            {field.type === "textarea" ? (
               <textarea
                 value={values[field.key] ?? ""}
                 onChange={(e) => update(field.key, e.target.value)}
                 rows={3}
                 className="w-full rounded-card border border-line bg-surface px-4 py-3 text-sm text-ink focus:border-navy focus:outline-none"
               />
+            ) : field.type === "select" ? (
+              <select
+                value={values[field.key] ?? ""}
+                onChange={(e) => update(field.key, e.target.value)}
+                className="w-full rounded-card border border-line bg-surface px-4 py-3 text-sm text-ink focus:border-navy focus:outline-none"
+              >
+                {field.options?.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             ) : (
               <input
                 required={field.required}
