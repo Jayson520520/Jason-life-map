@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthGate } from "@/components/AuthGate";
 
 export const metadata: Metadata = {
   title: "客戶人生地圖｜人生。房產。學",
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="zh-Hant">
       <body className="min-h-screen bg-paper text-ink antialiased">
-        <div className="mx-auto min-h-screen w-full max-w-md">{children}</div>
+        <div className="mx-auto min-h-screen w-full max-w-md">
+          <AuthGate>{children}</AuthGate>
+        </div>
       </body>
     </html>
   );
