@@ -9,6 +9,40 @@ import { RelationshipLevel } from "@/components/RelationshipLevel";
 import { ProfileCard, TagList } from "@/components/ProfileCard";
 import { Customer, CustomerProfile, Conversation, NextAction } from "@/types";
 
+// Reminder pill for customer.next_contact_at — separate from
+// last-contact tracking (updated_at), this is the manually-set "when
+// should I follow up next" date from the edit form.
+function formatNextContactReminder(nextContactAt?: string | null) {
+  if (!nextContactAt) return null;
+  const target = new Date(nextContactAt + "T00:00:00");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round(
+    (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const dateLabel = `${target.getMonth() + 1}/${target.getDate()}`;
+
+  if (days < 0) {
+    return {
+      label: `已逾期 ${Math.abs(days)} 天（${dateLabel}）`,
+      className: "bg-red-600 text-white",
+    };
+  }
+  if (days === 0) {
+    return { label: "今天該聯絡", className: "bg-red-600 text-white" };
+  }
+  if (days <= 3) {
+    return {
+      label: `${days} 天後要聯絡（${dateLabel}）`,
+      className: "bg-amber-100 text-amber-800",
+    };
+  }
+  return {
+    label: `提醒聯絡：${dateLabel}`,
+    className: "bg-surface text-muted border border-line",
+  };
+}
+
 export default function CustomerDetailPage({
   params,
 }: {
@@ -201,6 +235,7 @@ export default function CustomerDetailPage({
       : daysSinceContact !== null && daysSinceContact >= 14
       ? "text-amber-600"
       : "text-muted";
+  const reminder = formatNextContactReminder(customer.next_contact_at);
   const TIER_STYLE: Record<string, string> = {
     A: "bg-navy text-white",
     B: "bg-amber-100 text-amber-800",
@@ -252,8 +287,23 @@ export default function CustomerDetailPage({
             .join("　")}
         </p>
 
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <RelationshipLevel level={customer.relationship_level} />
+          {reminder ? (
+            <Link
+              href={`/customers/${customer.id}/edit`}
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${reminder.className}`}
+            >
+              ⏰ {reminder.label}
+            </Link>
+          ) : (
+            <Link
+              href={`/customers/${customer.id}/edit`}
+              className="rounded-full border border-line px-2.5 py-1 text-xs text-muted"
+            >
+              ＋ 設定下次提醒
+            </Link>
+          )}
         </div>
       </header>
 
