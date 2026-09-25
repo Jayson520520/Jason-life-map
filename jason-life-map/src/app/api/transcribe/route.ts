@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Allow up to 60s for this function on Vercel (Hobby plan max; raise if
-// you're on Pro and need more headroom for longer recordings).
-export const maxDuration = 60;
+// Fluid compute gives Hobby up to 300s by default, but we set this
+// explicitly so behavior doesn't depend on project-level defaults.
+export const maxDuration = 120;
 export const runtime = "nodejs";
 
-// Receives the recorded audio as multipart/form-data (field name "audio"),
-// forwards it to OpenAI's Whisper transcription endpoint, and returns the
-// resulting text. Uses a direct fetch call rather than the openai package,
-// matching the /api/analyze route's convention.
+// Receives a Supabase Storage signed URL (JSON body: { audioUrl }) rather
+// than the raw audio file. The audio never passes through this function's
+// REQUEST body, so it isn't subject to Vercel's 4.5MB request body limit —
+// only the (tiny) JSON payload is. We fetch the audio server-side, then
+// forward it to OpenAI's Whisper endpoint.
 export async function POST(req: NextRequest) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -18,27 +19,43 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let incomingForm: FormData;
+  let audioUrl: string | undefined;
   try {
-    incomingForm = await req.formData();
+    const body = await req.json();
+    audioUrl = body?.audioUrl;
   } catch {
-    return NextResponse.json(
-      { error: "讀取音檔失敗，請再試一次" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "請求格式錯誤" }, { status: 400 });
   }
 
-  const audio = incomingForm.get("audio");
-  if (!audio || !(audio instanceof Blob)) {
+  if (!audioUrl) {
+    return NextResponse.json({ error: "沒有收到音檔網址" }, { status: 400 });
+  }
+
+  // Fetch the recording from Supabase Storage (signed URL, so no auth
+  // header needed here).
+  let audioBuffer: ArrayBuffer;
+  let contentType = "audio/webm";
+  try {
+    const audioRes = await fetch(audioUrl);
+    if (!audioRes.ok) {
+      return NextResponse.json(
+        { error: "無法讀取錄音檔，請再試一次" },
+        { status: 502 }
+      );
+    }
+    contentType = audioRes.headers.get("content-type") || contentType;
+    audioBuffer = await audioRes.arrayBuffer();
+  } catch (err) {
+    console.error("Failed to fetch audio from storage:", err);
     return NextResponse.json(
-      { error: "沒有收到音檔" },
-      { status: 400 }
+      { error: "無法讀取錄音檔，請再試一次" },
+      { status: 502 }
     );
   }
 
   // Whisper's hard limit is 25MB per file.
   const MAX_BYTES = 25 * 1024 * 1024;
-  if (audio.size > MAX_BYTES) {
+  if (audioBuffer.byteLength > MAX_BYTES) {
     return NextResponse.json(
       { error: "錄音檔太大（超過 25MB），請分段錄製" },
       { status: 400 }
@@ -46,10 +63,8 @@ export async function POST(req: NextRequest) {
   }
 
   const whisperForm = new FormData();
-  // Whisper is picky about having a filename with a real extension.
-  const filename =
-    audio instanceof File && audio.name ? audio.name : "recording.webm";
-  whisperForm.append("file", audio, filename);
+  const filename = contentType.includes("mp4") ? "recording.mp4" : "recording.webm";
+  whisperForm.append("file", new Blob([audioBuffer], { type: contentType }), filename);
   whisperForm.append("model", "whisper-1");
   whisperForm.append("language", "zh");
 
