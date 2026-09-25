@@ -181,9 +181,26 @@ export default function CustomerDetailPage({
     );
   }
 
-  const lastContact = customer.updated_at
-    ? new Date(customer.updated_at).toISOString().slice(0, 10).replace(/-/g, "/")
+  const daysSinceContact = customer.updated_at
+    ? Math.floor(
+        (Date.now() - new Date(customer.updated_at).getTime()) /
+          (1000 * 60 * 60 * 24)
+      )
     : null;
+  const lastContactLabel =
+    daysSinceContact === null
+      ? null
+      : daysSinceContact <= 0
+      ? "今天已聯絡"
+      : daysSinceContact === 1
+      ? "昨天聯絡過"
+      : `距上次聯絡 ${daysSinceContact} 天`;
+  const lastContactColor =
+    daysSinceContact !== null && daysSinceContact >= 30
+      ? "text-red-600"
+      : daysSinceContact !== null && daysSinceContact >= 14
+      ? "text-amber-600"
+      : "text-muted";
 
   return (
     <main className="flex min-h-screen flex-col bg-surface pb-16">
@@ -200,8 +217,10 @@ export default function CustomerDetailPage({
             {customer.name}
           </h1>
           <div className="flex items-center gap-3">
-            {lastContact && (
-              <span className="text-xs text-muted">最近互動：{lastContact}</span>
+            {lastContactLabel && (
+              <span className={`text-xs ${lastContactColor}`}>
+                {lastContactLabel}
+              </span>
             )}
             <Link href={`/customers/${customer.id}/edit`} className="text-xs text-navy">
               編輯
