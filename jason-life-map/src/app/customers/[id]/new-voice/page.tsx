@@ -18,11 +18,27 @@ export default function NewVoiceConversationPage({
   const [seconds, setSeconds] = useState(0);
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  // Path inside the "conversation-audio" bucket, set once the recording is
+  // uploaded (which now happens BEFORE transcription, not at save time —
+  // see handleTranscribe).
+  const [audioPath, setAudioPath] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Grows the textarea to fit whatever's in it (short or long transcripts)
+  // instead of locking it to a fixed row count that clips long recordings.
+  function resizeTextarea(el: HTMLTextAreaElement) {
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }
+
+  function handleTranscriptChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setTranscript(e.target.value);
+    resizeTextarea(e.target);
+  }
 
   async function startRecording() {
     setError(null);
@@ -40,7 +56,6 @@ export default function NewVoiceConversationPage({
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: mimeType });
-        setAudioBlob(blob);
         handleTranscribe(blob);
       };
 
@@ -60,13 +75,47 @@ export default function NewVoiceConversationPage({
     setStatus("transcribing");
   }
 
+  // Uploads the recording straight to Supabase Storage and returns a
+  // short-lived signed URL. Doing this BEFORE calling /api/transcribe is
+  // what lets long recordings work: the audio bytes never go through the
+  // Vercel function's request body (hard-capped at 4.5MB), only the small
+  // JSON { audioUrl } payload does.
+  async function uploadAudio(blob: Blob) {
+    if (!user) return null;
+    const path = `${user.id}/${params.id}/${Date.now()}.webm`;
+    const { error: uploadError } = await supabaseBrowser.storage
+      .from("conversation-audio")
+      .upload(path, blob, { contentType: blob.type });
+    if (uploadError) {
+      console.error("Audio upload failed:", uploadError);
+      return null;
+    }
+
+    const { data: signedData, error: signError } = await supabaseBrowser.storage
+      .from("conversation-audio")
+      .createSignedUrl(path, 300);
+    if (signError || !signedData) {
+      console.error("Signed URL creation failed:", signError);
+      return null;
+    }
+
+    return { path, signedUrl: signedData.signedUrl };
+  }
+
   async function handleTranscribe(blob: Blob) {
     try {
-      const formData = new FormData();
-      formData.append("audio", blob, "recording.webm");
+      const uploaded = await uploadAudio(blob);
+      if (!uploaded) {
+        setError("錄音上傳失敗，請再試一次");
+        setStatus("idle");
+        return;
+      }
+      setAudioPath(uploaded.path);
+
       const res = await fetch("/api/transcribe", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audioUrl: uploaded.signedUrl }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -76,6 +125,10 @@ export default function NewVoiceConversationPage({
       }
       setTranscript(data.transcript || "");
       setStatus("review");
+      // The textarea isn't mounted yet on this render; resize once it is.
+      requestAnimationFrame(() => {
+        if (textareaRef.current) resizeTextarea(textareaRef.current);
+      });
     } catch {
       setError("轉錄失敗，請再試一次");
       setStatus("idle");
@@ -87,15 +140,7 @@ export default function NewVoiceConversationPage({
     setStatus("saving");
     setError(null);
 
-    let audioPath: string | null = null;
-    if (audioBlob) {
-      const path = `${user.id}/${params.id}/${Date.now()}.webm`;
-      const { error: uploadError } = await supabaseBrowser.storage
-        .from("conversation-audio")
-        .upload(path, audioBlob, { contentType: audioBlob.type });
-      if (!uploadError) audioPath = path;
-    }
-
+    // Audio was already uploaded before transcription — just reference it.
     const { data: inserted, error: insertError } = await supabaseBrowser
       .from("conversations")
       .insert({
@@ -191,10 +236,12 @@ export default function NewVoiceConversationPage({
             以下是轉錄結果，可以直接修改再儲存
           </p>
           <textarea
+            ref={textareaRef}
             value={transcript}
-            onChange={(e) => setTranscript(e.target.value)}
-            rows={8}
-            className="w-full rounded-card border border-line bg-white p-3 text-sm text-ink"
+            onChange={handleTranscriptChange}
+            rows={10}
+            className="w-full resize-none overflow-hidden rounded-card border border-line bg-white p-3 text-sm leading-relaxed text-ink"
+            style={{ minHeight: "220px" }}
           />
           <button
             type="submit"
