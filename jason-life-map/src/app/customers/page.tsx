@@ -4,12 +4,24 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useSupabaseUser } from "@/lib/supabase/useSession";
-import { CustomerCard } from "@/components/CustomerCard";
-import { Customer } from "@/types";
+import { CustomerCard, CustomerWithAI } from "@/components/CustomerCard";
+
+// AI-judged fields we pull from customer_profiles to show on each card.
+// Concerns ("在乎的事情") come first since they're the most decision-useful
+// at-a-glance summary; life_goals fills in when a customer has no concerns
+// recorded yet.
+function buildAiHighlights(profile?: {
+  concerns?: string[] | null;
+  life_goals?: string[] | null;
+}): string[] {
+  if (!profile) return [];
+  const pool = [...(profile.concerns ?? []), ...(profile.life_goals ?? [])];
+  return pool.slice(0, 2);
+}
 
 export default function CustomersPage() {
   const { user, loading: userLoading, error: userError } = useSupabaseUser();
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<CustomerWithAI[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
 
@@ -18,14 +30,23 @@ export default function CustomersPage() {
     let mounted = true;
 
     async function load() {
-      const { data, error } = await supabaseBrowser
-        .from("customers")
-        .select("*")
-        .order("updated_at", { ascending: false });
+      const [customersRes, profilesRes] = await Promise.all([
+        supabaseBrowser
+          .from("customers")
+          .select("*")
+          .order("updated_at", { ascending: false }),
+        supabaseBrowser
+          .from("customer_profiles")
+          .select("customer_id, concerns, life_goals"),
+      ]);
 
-      if (!error && data && mounted) {
+      if (!customersRes.error && customersRes.data && mounted) {
+        const profileByCustomerId = new Map(
+          (profilesRes.data ?? []).map((p) => [p.customer_id as string, p])
+        );
+
         setCustomers(
-          data.map((c) => ({
+          customersRes.data.map((c) => ({
             ...c,
             last_contact_at: c.updated_at
               ? new Date(c.updated_at)
@@ -33,6 +54,7 @@ export default function CustomersPage() {
                   .slice(0, 10)
                   .replace(/-/g, "/")
               : undefined,
+            ai_highlights: buildAiHighlights(profileByCustomerId.get(c.id)),
           }))
         );
       }
