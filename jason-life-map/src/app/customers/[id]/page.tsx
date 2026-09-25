@@ -7,7 +7,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { useSupabaseUser } from "@/lib/supabase/useSession";
 import { RelationshipLevel } from "@/components/RelationshipLevel";
 import { ProfileCard, TagList } from "@/components/ProfileCard";
-import { Customer, CustomerProfile, Conversation } from "@/types";
+import { Customer, CustomerProfile, Conversation, NextAction } from "@/types";
 
 export default function CustomerDetailPage({
   params,
@@ -19,9 +19,11 @@ export default function CustomerDetailPage({
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [nextActions, setNextActions] = useState<NextAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [updatingActionId, setUpdatingActionId] = useState<string | null>(null);
 
   async function handleDeleteConversation(id: string) {
     const confirmed = window.confirm("確定要刪除這則談話紀錄嗎？此動作無法復原。");
@@ -91,12 +93,25 @@ export default function CustomerDetailPage({
     }
   }
 
+  async function handleUpdateNextActionStatus(id: string, status: "done" | "dismissed") {
+    setUpdatingActionId(id);
+    const { error } = await supabaseBrowser
+      .from("next_actions")
+      .update({ status })
+      .eq("id", id);
+
+    if (!error) {
+      setNextActions((prev) => prev.filter((a) => a.id !== id));
+    }
+    setUpdatingActionId(null);
+  }
+
   useEffect(() => {
     if (!user) return;
     let mounted = true;
 
     async function load() {
-      const [customerRes, profileRes, conversationsRes] = await Promise.all([
+      const [customerRes, profileRes, conversationsRes, nextActionsRes] = await Promise.all([
         supabaseBrowser
           .from("customers")
           .select("*")
@@ -112,12 +127,19 @@ export default function CustomerDetailPage({
           .select("*")
           .eq("customer_id", params.id)
           .order("conversation_date", { ascending: false }),
+        supabaseBrowser
+          .from("next_actions")
+          .select("*")
+          .eq("customer_id", params.id)
+          .eq("status", "open")
+          .order("created_at", { ascending: false }),
       ]);
 
       if (!mounted) return;
       setCustomer(customerRes.data ?? null);
       setProfile(profileRes.data ?? null);
       setConversations(conversationsRes.data ?? []);
+      setNextActions(nextActionsRes.data ?? []);
       setLoading(false);
     }
 
@@ -306,8 +328,33 @@ export default function CustomerDetailPage({
           </ul>
         </ProfileCard>
 
-        <ProfileCard title="下一步" empty>
-          {/* AI-suggested next steps arrive in Phase 4 */}
+        <ProfileCard title="下一步" empty={nextActions.length === 0}>
+          <ul className="flex flex-col gap-2">
+            {nextActions.map((action) => (
+              <li
+                key={action.id}
+                className="rounded-card bg-surface p-3"
+              >
+                <p className="text-sm text-ink">{action.question}</p>
+                <div className="mt-2 flex items-center gap-3">
+                  <button
+                    onClick={() => handleUpdateNextActionStatus(action.id, "done")}
+                    disabled={updatingActionId === action.id}
+                    className="text-xs text-navy disabled:opacity-50"
+                  >
+                    完成
+                  </button>
+                  <button
+                    onClick={() => handleUpdateNextActionStatus(action.id, "dismissed")}
+                    disabled={updatingActionId === action.id}
+                    className="text-xs text-red-600 disabled:opacity-50"
+                  >
+                    忽略
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         </ProfileCard>
       </div>
 
