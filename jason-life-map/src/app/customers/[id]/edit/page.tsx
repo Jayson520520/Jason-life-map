@@ -9,7 +9,7 @@ const FIELDS: {
   key: string;
   label: string;
   required?: boolean;
-  type?: "text" | "textarea" | "select";
+  type?: "text" | "textarea" | "select" | "date";
   options?: { value: string; label: string }[];
 }[] = [
   { key: "name", label: "姓名", required: true },
@@ -31,6 +31,7 @@ const FIELDS: {
   { key: "company", label: "公司／產業" },
   { key: "phone", label: "手機" },
   { key: "contact_info", label: "LINE / 聯絡方式" },
+  { key: "next_contact_at", label: "下次提醒聯絡日期", type: "date" },
   { key: "notes", label: "備註", type: "textarea" },
 ];
 
@@ -69,6 +70,7 @@ export default function EditCustomerPage({
           company: data.company ?? "",
           phone: data.phone ?? "",
           contact_info: data.contact_info ?? "",
+          next_contact_at: data.next_contact_at ?? "",
           notes: data.notes ?? "",
         });
       }
@@ -106,6 +108,7 @@ export default function EditCustomerPage({
         company: values.company || null,
         phone: values.phone || null,
         contact_info: values.contact_info || null,
+        next_contact_at: values.next_contact_at || null,
         notes: values.notes || null,
       })
       .eq("id", params.id);
@@ -171,6 +174,24 @@ export default function EditCustomerPage({
                   </option>
                 ))}
               </select>
+            ) : field.type === "date" ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={values[field.key] ?? ""}
+                  onChange={(e) => update(field.key, e.target.value)}
+                  className="w-full rounded-card border border-line bg-surface px-4 py-3 text-sm text-ink focus:border-navy focus:outline-none"
+                />
+                {values[field.key] && (
+                  <button
+                    type="button"
+                    onClick={() => update(field.key, "")}
+                    className="shrink-0 text-xs text-muted"
+                  >
+                    清除
+                  </button>
+                )}
+              </div>
             ) : (
               <input
                 required={field.required}
