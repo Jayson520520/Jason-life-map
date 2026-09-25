@@ -1,5 +1,7 @@
 export type RelationshipLevel = 1 | 2 | 3 | 4 | 5;
 
+export type CustomerTier = "A" | "B" | "C";
+
 export interface Customer {
   id: string;
   user_id: string;
@@ -14,6 +16,7 @@ export interface Customer {
   phone?: string | null;
   contact_info?: string | null;
   relationship_level: RelationshipLevel;
+  tier?: CustomerTier | null;
   notes?: string | null;
   created_at: string;
   updated_at: string;
