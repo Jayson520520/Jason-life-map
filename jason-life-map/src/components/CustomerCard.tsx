@@ -1,7 +1,25 @@
 import Link from "next/link";
 import { Customer } from "@/types";
 
+function formatDaysSinceContact(updatedAt?: string) {
+  if (!updatedAt) return null;
+  const days = Math.floor(
+    (Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24)
+  );
+  if (days <= 0) return { label: "今天已聯絡", days };
+  if (days === 1) return { label: "昨天聯絡過", days };
+  return { label: `距上次聯絡 ${days} 天`, days };
+}
+
 export function CustomerCard({ customer }: { customer: Customer }) {
+  const contact = formatDaysSinceContact(customer.updated_at);
+  const colorClass =
+    contact && contact.days >= 30
+      ? "text-red-600"
+      : contact && contact.days >= 14
+      ? "text-amber-600"
+      : "text-muted";
+
   return (
     <Link
       href={`/customers/${customer.id}`}
@@ -11,10 +29,8 @@ export function CustomerCard({ customer }: { customer: Customer }) {
         <h3 className="font-serif text-lg font-medium text-ink">
           {customer.name}
         </h3>
-        {customer.last_contact_at && (
-          <span className="text-xs text-muted">
-            最近互動：{customer.last_contact_at}
-          </span>
+        {contact && (
+          <span className={`text-xs ${colorClass}`}>{contact.label}</span>
         )}
       </div>
       <p className="mt-0.5 text-sm text-muted">
