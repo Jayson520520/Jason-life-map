@@ -20,7 +20,7 @@ export default function CustomerDetailPage({
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
- const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function handleDeleteConversation(id: string) {
@@ -38,6 +38,7 @@ export default function CustomerDetailPage({
     }
     setDeletingId(null);
   }
+
   async function handleDeleteProfileItem(
     field: "family" | "work" | "life_goals" | "concerns" | "resistance" | "decision_makers",
     index: number
@@ -65,10 +66,8 @@ export default function CustomerDetailPage({
     const updatedList = profile.competitors.filter((_, i) => i !== index);
     const { error } = await supabaseBrowser
       .from("customer_profiles")
-          .update({ competitors: updatedList, updated_at: new Date().toISOString() })
-      .eq("id", 
-profile.id
-);
+      .update({ competitors: updatedList, updated_at: new Date().toISOString() })
+      .eq("id", profile.id);
 
     if (!error) {
       setProfile({ ...profile, competitors: updatedList });
@@ -85,9 +84,7 @@ profile.id
     const { error } = await supabaseBrowser
       .from("customer_profiles")
       .update({ finance: updated, updated_at: new Date().toISOString() })
-      .eq("id", 
-profile.id
-);
+      .eq("id", profile.id);
 
     if (!error) {
       setProfile({ ...profile, finance: updated });
@@ -150,7 +147,9 @@ profile.id
         </button>
       </main>
     );
- const lastContact = customer.updated_at
+  }
+
+  const lastContact = customer.updated_at
     ? new Date(customer.updated_at).toISOString().slice(0, 10).replace(/-/g, "/")
     : null;
 
@@ -209,17 +208,18 @@ profile.id
 
       <div className="mt-5 flex flex-col gap-3 px-5">
         <ProfileCard title="家庭" empty={!profile?.family.length}>
-         <TagList
+          <TagList
             items={profile?.family ?? []}
             onDelete={(i) => handleDeleteProfileItem("family", i)}
           />
         </ProfileCard>
 
         <ProfileCard title="工作" empty={!profile?.work.length}>
-         <TagList
+          <TagList
             items={profile?.work ?? []}
             onDelete={(i) => handleDeleteProfileItem("work", i)}
           />
+        </ProfileCard>
 
         <ProfileCard
           title="財務輪廓"
@@ -245,28 +245,31 @@ profile.id
         </ProfileCard>
 
         <ProfileCard title="人生想法" empty={!profile?.life_goals.length}>
-         <TagList
+          <TagList
             items={profile?.life_goals ?? []}
             onDelete={(i) => handleDeleteProfileItem("life_goals", i)}
           />
+        </ProfileCard>
 
         <ProfileCard title="在乎的事情" empty={!profile?.concerns.length}>
-         <TagList
+          <TagList
             items={profile?.concerns ?? []}
             onDelete={(i) => handleDeleteProfileItem("concerns", i)}
           />
+        </ProfileCard>
 
         <ProfileCard title="抗拒／雷點" empty={!profile?.resistance.length}>
           <TagList
             items={profile?.resistance ?? []}
             onDelete={(i) => handleDeleteProfileItem("resistance", i)}
           />
+        </ProfileCard>
 
         <ProfileCard
           title="決策者"
           empty={!profile?.decision_makers.length}
         >
-         <TagList
+          <TagList
             items={profile?.decision_makers ?? []}
             onDelete={(i) => handleDeleteProfileItem("decision_makers", i)}
           />
@@ -330,7 +333,7 @@ profile.id
                 <p className="mt-1 text-sm text-ink">
                   {conv.summary || conv.transcript}
                 </p>
-               <div className="mt-2 flex items-center gap-3">
+                <div className="mt-2 flex items-center gap-3">
                   {conv.transcript && (
                     <button
                       onClick={() => setExpandedId(isOpen ? null : conv.id)}
