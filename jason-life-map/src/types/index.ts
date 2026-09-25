@@ -21,6 +21,11 @@ export interface Customer {
   created_at: string;
   updated_at: string;
 
+  // Manually-set reminder date (yyyy-mm-dd) for "when should I contact this
+  // person next" — separate from updated_at, which tracks when they were
+  // LAST actually contacted.
+  next_contact_at?: string | null;
+
   // convenience fields surfaced on the list page — in Phase 1 these come
   // from mock data; from Phase 2 onward they are derived from the latest
   // conversation + customer_profiles.
