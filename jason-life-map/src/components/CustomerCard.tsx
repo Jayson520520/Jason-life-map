@@ -26,14 +26,14 @@ export function CustomerCard({ customer }: { customer: Customer }) {
       className="block rounded-card border border-line bg-paper p-4 shadow-card active:bg-surface"
     >
       <div className="flex items-baseline justify-between">
-        <h3 className="font-serif text-lg font-medium text-ink">
+        <h3 className="font-serif text-xl font-medium text-ink">
           {customer.name}
         </h3>
         {contact && (
-          <span className={`text-xs ${colorClass}`}>{contact.label}</span>
+          <span className={`text-sm ${colorClass}`}>{contact.label}</span>
         )}
       </div>
-      <p className="mt-0.5 text-sm text-muted">
+      <p className="mt-0.5 text-base text-muted">
         {[
           customer.age ? `${customer.age}歲` : null,
           customer.occupation,
@@ -44,8 +44,8 @@ export function CustomerCard({ customer }: { customer: Customer }) {
 
       {customer.current_focus && customer.current_focus.length > 0 && (
         <div className="mt-3">
-          <p className="text-xs text-muted">目前焦點</p>
-          <p className="mt-0.5 text-sm text-ink">
+          <p className="text-sm text-muted">目前焦點</p>
+          <p className="mt-0.5 text-base text-ink">
             {customer.current_focus.join("｜")}
           </p>
         </div>
@@ -53,8 +53,8 @@ export function CustomerCard({ customer }: { customer: Customer }) {
 
       {customer.next_step && (
         <div className="mt-2">
-          <p className="text-xs text-muted">下一步</p>
-          <p className="mt-0.5 text-sm text-navy">{customer.next_step}</p>
+          <p className="text-sm text-muted">下一步</p>
+          <p className="mt-0.5 text-base text-navy">{customer.next_step}</p>
         </div>
       )}
     </Link>
