@@ -11,6 +11,12 @@ function formatDaysSinceContact(updatedAt?: string) {
   return { label: `距上次聯絡 ${days} 天`, days };
 }
 
+const TIER_STYLE: Record<string, string> = {
+  A: "bg-navy text-white",
+  B: "bg-amber-100 text-amber-800",
+  C: "bg-surface text-muted border border-line",
+};
+
 export function CustomerCard({ customer }: { customer: Customer }) {
   const contact = formatDaysSinceContact(customer.updated_at);
   const colorClass =
@@ -26,9 +32,20 @@ export function CustomerCard({ customer }: { customer: Customer }) {
       className="block rounded-card border border-line bg-paper p-4 shadow-card active:bg-surface"
     >
       <div className="flex items-baseline justify-between">
-        <h3 className="font-serif text-xl font-medium text-ink">
-          {customer.name}
-        </h3>
+        <div className="flex items-center gap-2">
+          {customer.tier && (
+            <span
+              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                TIER_STYLE[customer.tier] ?? "bg-surface text-muted"
+              }`}
+            >
+              {customer.tier}
+            </span>
+          )}
+          <h3 className="font-serif text-xl font-medium text-ink">
+            {customer.name}
+          </h3>
+        </div>
         {contact && (
           <span className={`text-sm ${colorClass}`}>{contact.label}</span>
         )}
