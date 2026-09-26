@@ -17,9 +17,9 @@ function formatDaysSinceContact(updatedAt?: string) {
   return { label: `距上次聯絡 ${days} 天`, days };
 }
 
-// Manually-set "next_contact_at" reminder date — only surfaced on the
-// card when it's due today, overdue, or coming up within 3 days, so the
-// list stays scannable instead of showing a pill for every customer.
+// Manually-set "next_contact_at" reminder date. Shown on every card that
+// has one set, colored by urgency (red = due/overdue, amber = coming up
+// within 3 days, neutral = further out) so it matches the detail page.
 function formatUpcomingReminder(nextContactAt?: string | null) {
   if (!nextContactAt) return null;
   const target = new Date(nextContactAt + "T00:00:00");
@@ -28,6 +28,7 @@ function formatUpcomingReminder(nextContactAt?: string | null) {
   const days = Math.round(
     (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
   );
+  const dateLabel = `${target.getMonth() + 1}/${target.getDate()}`;
 
   if (days < 0) {
     return { label: `逾期 ${Math.abs(days)} 天`, className: "bg-red-600 text-white" };
@@ -38,7 +39,10 @@ function formatUpcomingReminder(nextContactAt?: string | null) {
   if (days <= 3) {
     return { label: `${days} 天後聯絡`, className: "bg-amber-100 text-amber-800" };
   }
-  return null;
+  return {
+    label: `提醒聯絡：${dateLabel}`,
+    className: "bg-surface text-muted border border-line",
+  };
 }
 
 const TIER_STYLE: Record<string, string> = {
