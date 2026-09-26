@@ -80,15 +80,20 @@ export default function NewVoiceConversationPage({
   // what lets long recordings work: the audio bytes never go through the
   // Vercel function's request body (hard-capped at 4.5MB), only the small
   // JSON { audioUrl } payload does.
-  async function uploadAudio(blob: Blob) {
-    if (!user) return null;
+  async function uploadAudio(
+    blob: Blob
+  ): Promise<
+    | { ok: true; path: string; signedUrl: string }
+    | { ok: false; message: string }
+  > {
+    if (!user) return { ok: false, message: "尚未登入" };
     const path = `${user.id}/${params.id}/${Date.now()}.webm`;
     const { error: uploadError } = await supabaseBrowser.storage
       .from("conversation-audio")
       .upload(path, blob, { contentType: blob.type });
     if (uploadError) {
       console.error("Audio upload failed:", uploadError);
-      return null;
+      return { ok: false, message: `上傳失敗：${uploadError.message}` };
     }
 
     const { data: signedData, error: signError } = await supabaseBrowser.storage
@@ -96,17 +101,20 @@ export default function NewVoiceConversationPage({
       .createSignedUrl(path, 300);
     if (signError || !signedData) {
       console.error("Signed URL creation failed:", signError);
-      return null;
+      return {
+        ok: false,
+        message: `無法產生簽名網址：${signError?.message ?? "未知錯誤"}`,
+      };
     }
 
-    return { path, signedUrl: signedData.signedUrl };
+    return { ok: true, path, signedUrl: signedData.signedUrl };
   }
 
   async function handleTranscribe(blob: Blob) {
     try {
       const uploaded = await uploadAudio(blob);
-      if (!uploaded) {
-        setError("錄音上傳失敗，請再試一次");
+      if (!uploaded.ok) {
+        setError(uploaded.message);
         setStatus("idle");
         return;
       }
