@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useSupabaseUser } from "@/lib/supabase/useSession";
@@ -39,6 +39,16 @@ export default function NewVoiceConversationPage({
     setTranscript(e.target.value);
     resizeTextarea(e.target);
   }
+
+  // Runs after React actually commits the textarea to the DOM (unlike a
+  // requestAnimationFrame call made right when the transcript arrives,
+  // which could fire before the element exists). Covers both "just
+  // switched into review" and "transcript text changed under us".
+  useEffect(() => {
+    if (status === "review" && textareaRef.current) {
+      resizeTextarea(textareaRef.current);
+    }
+  }, [status, transcript]);
 
   async function startRecording() {
     setError(null);
@@ -133,10 +143,6 @@ export default function NewVoiceConversationPage({
       }
       setTranscript(data.transcript || "");
       setStatus("review");
-      // The textarea isn't mounted yet on this render; resize once it is.
-      requestAnimationFrame(() => {
-        if (textareaRef.current) resizeTextarea(textareaRef.current);
-      });
     } catch {
       setError("轉錄失敗，請再試一次");
       setStatus("idle");
