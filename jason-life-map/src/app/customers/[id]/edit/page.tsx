@@ -45,6 +45,7 @@ export default function EditCustomerPage({
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -121,6 +122,37 @@ export default function EditCustomerPage({
     }
 
     router.push(`/customers/${params.id}`);
+  }
+
+  async function handleDeleteCustomer() {
+    const confirmed = window.confirm(
+      `確定要刪除「${values.name || "這位客戶"}」嗎？所有談話紀錄、AI 分析結果都會一起刪除，此動作無法復原。`
+    );
+    if (!confirmed) return;
+    // Ask again — this wipes everything for the customer, not just one field.
+    const confirmedAgain = window.confirm("真的要刪除嗎？這是最後一次確認。");
+    if (!confirmedAgain) return;
+
+    setDeleting(true);
+    setError(null);
+
+    // Delete children first in case the database doesn't cascade these
+    // automatically, then the customer row itself.
+    await supabaseBrowser.from("next_actions").delete().eq("customer_id", params.id);
+    await supabaseBrowser.from("conversations").delete().eq("customer_id", params.id);
+    await supabaseBrowser.from("customer_profiles").delete().eq("customer_id", params.id);
+    const { error: deleteError } = await supabaseBrowser
+      .from("customers")
+      .delete()
+      .eq("id", params.id);
+
+    if (deleteError) {
+      setError("刪除失敗，請再試一次");
+      setDeleting(false);
+      return;
+    }
+
+    router.push("/customers");
   }
 
   if (userLoading || loading) {
@@ -207,10 +239,19 @@ export default function EditCustomerPage({
 
         <button
           type="submit"
-          disabled={saving || userLoading}
+          disabled={saving || userLoading || deleting}
           className="mt-2 w-full rounded-card bg-navy py-3 text-sm font-medium text-white active:bg-navy-light disabled:opacity-60"
         >
           {saving ? "儲存中..." : "儲存變更"}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDeleteCustomer}
+          disabled={deleting || saving}
+          className="mt-4 w-full rounded-card border border-red-200 py-3 text-sm font-medium text-red-600 active:bg-red-50 disabled:opacity-60"
+        >
+          {deleting ? "刪除中..." : "刪除這位客戶"}
         </button>
       </form>
     </main>
