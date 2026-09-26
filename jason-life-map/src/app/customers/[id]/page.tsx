@@ -128,6 +128,23 @@ export default function CustomerDetailPage({
     }
   }
 
+  async function handleDeletePropertyItem(key: string) {
+    if (!profile) return;
+    const confirmed = window.confirm("確定要刪除這一項嗎？此動作無法復原。");
+    if (!confirmed) return;
+
+    const updated = { ...profile.property };
+    delete updated[key];
+    const { error } = await supabaseBrowser
+      .from("customer_profiles")
+      .update({ property: updated, updated_at: new Date().toISOString() })
+      .eq("id", profile.id);
+
+    if (!error) {
+      setProfile({ ...profile, property: updated });
+    }
+  }
+
   function formatDaysAgo(dateStr: string) {
     const days = Math.floor(
       (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24)
@@ -351,6 +368,29 @@ export default function CustomerDetailPage({
                     <dd>{v}</dd>
                     <button
                       onClick={() => handleDeleteFinanceItem(k)}
+                      className="text-xs text-red-600"
+                    >
+                      刪除
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </dl>
+        </ProfileCard>
+
+        <ProfileCard
+          title="房產"
+          empty={!profile || Object.keys(profile.property).length === 0}
+        >
+          <dl className="flex flex-col gap-1.5">
+            {profile &&
+              Object.entries(profile.property).map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between gap-2">
+                  <dt className="text-muted">{k}</dt>
+                  <div className="flex items-center gap-2">
+                    <dd>{v}</dd>
+                    <button
+                      onClick={() => handleDeletePropertyItem(k)}
                       className="text-xs text-red-600"
                     >
                       刪除
